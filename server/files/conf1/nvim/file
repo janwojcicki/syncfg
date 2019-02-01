@@ -29,24 +29,18 @@ Plugin 'vim-airline/vim-airline-themes'
 Plugin 'raimondi/delimitmate'
 Plugin 'vim-syntastic/syntastic'
 Plugin 'rust-lang/rust.vim'
-"Plugin 'w0rp/ale'
 Plugin 'mileszs/ack.vim'
-Plugin 'tpope/vim-fugitive'
+"Plugin 'w0rp/ale'
 Plugin 'farmergreg/vim-lastplace'
-Plugin 'tomlion/vim-solidity'
 Plugin 'rhysd/clever-f.vim'
 Plugin 'mhartington/oceanic-next'
 Plugin 'othree/yajs.vim'
-Plugin 'rhysd/vim-crystal'
 Plugin 'othree/html5.vim'
 Plugin 'HerringtonDarkholme/yats.vim'
 Plugin 'yuttie/comfortable-motion.vim'
 Plugin 'lilydjwg/colorizer'
 Plugin 'prettier/vim-prettier'
 Plugin 'airblade/vim-gitgutter'
-Plugin 'gryf/pylint-vim'
-Plugin 'posva/vim-vue'
-Plugin 'cakebaker/scss-syntax.vim'
 
 call vundle#end()
 filetype plugin indent on
@@ -144,8 +138,3 @@ let g:prettier#config#use_tabs = 'true'
 let g:prettier#config#single_quote = 'true'
 
 let g:ctrlp_custom_ignore = 'node_modules'
-
-highlight OverLength ctermbg=red ctermfg=white guibg=#592929
-match OverLength /\%99v.\+/
-highlight Normal guibg=none
-highlight NonText guibg=none
