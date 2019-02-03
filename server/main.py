@@ -1,5 +1,5 @@
 import zipfile
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, send_from_directory
 from werkzeug import secure_filename
 app = Flask(__name__)
 import os
@@ -22,13 +22,19 @@ def upload_file():
 
 @app.route('/getfiles', methods = ['GET'])
 def get_file():
-    zipf = zipfile.ZipFile('Name.zip','w', zipfile.ZIP_DEFLATED)
+    st = ""
+    print(request.args)
     for root, dirs, files in os.walk('files/'+request.args['user_name']+'/'+request.args['conf_name']):
-        print(root)
-        print(dirs)
-        print(files)
-        print("NEXT")
-        
+        if len(dirs) > 0:
+            for d in dirs:
+                st += request.args.get('user_name') + '/' + request.args.get('conf_name') + '/' + d + ' '
+    print(st)
+    return st
+
+
+@app.route('/file/<path:path>')
+def send_js(path):
+    return send_from_directory('files', path)
 
 if __name__ == '__main__':
     app.run(debug = True)

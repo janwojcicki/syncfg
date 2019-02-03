@@ -114,8 +114,8 @@ func write_config(){
 	}
 	defer file.Close()
 
+	fmt.Fprintf(file, "$"+user+"\n")
 	for i := 0; i < len(config); i++{
-		fmt.Println(config[i])
 		fmt.Fprintf(file, config[i]+"\n")
 	}
 }
@@ -143,53 +143,97 @@ func send_file(cur_conf string, cc string) {
 	}
 }
 
+func get_request(url string)  string {
+	response, err := http.Get(url)
+	if err != nil {
+		fmt.Printf("%s", err)
+		os.Exit(1)
+	} else {
+		defer response.Body.Close()
+		contents, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			fmt.Printf("%s", err)
+			os.Exit(1)
+		}
+		return string(contents)
+	}
+	return ""
+}
+
+func insert_into_config(conf string, name string, path string){
+	found := false
+	for i := 0; i < len(config); i++ {
+		if config[i][:1] == "#" && config[i][1:] == conf{
+			for j := i+1; j < len(config); j++{
+				if strings.Split(config[j], ":")[0] == name{
+					config[j] = name + ":" + expand_path(path)
+					found = true
+					break
+				}
+			}
+			if !found{
+				config = append(config, "")
+				copy(config[i+2:], config[i+1:])
+				config[i+1] = name + ":" + expand_path(path)
+				found = true
+			}
+			break
+		}
+	}
+	if !found {
+		config = append(config, "#" + conf)
+		config = append(config, name + ":" + expand_path(path))
+	}
+}
+
 func main() {
 
 	if len(os.Args) == 1 || os.Args[1] == "help" {
 		fmt.Println("help")
-		os.Exit(0)
-	}
+		os.Exit(0) }
 
-	if len(os.Args) > 1{
-		read_config()
-		if os.Args[1] == "add"{
-			assert(len(os.Args) == 5, "wrong number of arguments \n maybe call syncfg help")
+		if len(os.Args) > 1{
+			read_config()
+			if os.Args[1] == "add"{
+				assert(len(os.Args) == 5, "wrong number of arguments \n maybe call syncfg help")
+				insert_into_config(os.Args[2], os.Args[3], os.Args[4])
+				write_config()
+			}
 
-			found := false
-			for i := 0; i < len(config); i++ {
-				if config[i][:1] == "#" && config[i][1:] == os.Args[2]{
-					for j := i+1; j < len(config); j++{
-						if strings.Split(config[j], ":")[0] == os.Args[3] {
-							config[j] = os.Args[3] + ":" + expand_path(os.Args[4])
-							found = true
-							break
+			if os.Args[1] == "commit" {
+				cur_conf := ""
+				for i := 0; i < len(config); i++ {
+					if config[i][:1] == "#"{
+						cur_conf = config[i][1:]
+					} else if cur_conf != "" && config[i] != ""{
+						send_file(cur_conf, config[i])
+					}
+				}
+			}
+
+			if os.Args[1] == "get" {
+				assert(len(os.Args) == 3, "wrong number of arguments \n maybe call syncfg help")
+
+				ur := "http://localhost:5000/getfiles?user_name="+user+"&conf_name="+os.Args[2]
+				files_str := get_request(ur)
+				files := strings.Split(files_str, " ")
+				for i := 0; i < len(files); i++{
+					if files[i] != ""{
+						path := get_request("http://localhost:5000/file/"+files[i]+"/config")
+						file_str := get_request("http://localhost:5000/file/"+files[i]+"/file")
+
+						file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+						if err != nil {
+							log.Fatal(err)
 						}
-					}
-					if !found{
-						config = append(config, "")
-						copy(config[i+2:], config[i+1:])
-						config[i+1] = os.Args[3] + ":" + expand_path(os.Args[4])
-						found = true
-					}
-					break
-				}
-			}
-			if !found {
-				config = append(config, "#" + os.Args[2])
-				config = append(config, os.Args[3] + ":" + expand_path(os.Args[4]))
-			}
-			write_config()
-		}
+						defer file.Close()
 
-		if os.Args[1] == "commit" {
-			cur_conf := ""
-			for i := 0; i < len(config); i++ {
-				if config[i][:1] == "#"{
-					cur_conf = config[i][1:]
-				} else if cur_conf != "" && config[i] != ""{
-					send_file(cur_conf, config[i])
+						fmt.Fprintf(file, file_str)
+						path_details := strings.Split(files[i], "/")
+						insert_into_config(os.Args[2], path_details[2], path)
+					}
 				}
+				write_config()
 			}
 		}
 	}
-}
