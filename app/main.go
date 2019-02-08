@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"bufio"
+	"strconv"
 )
 
 var cwd, _ =  os.Getwd();
@@ -115,6 +116,7 @@ func write_config(){
 	defer file.Close()
 
 	fmt.Fprintf(file, "$"+user+"\n")
+	fmt.Fprintf(file, "$"+password+"\n")
 	for i := 0; i < len(config); i++{
 		fmt.Fprintf(file, config[i]+"\n")
 	}
@@ -127,6 +129,7 @@ func send_file(cur_conf string, cc string) {
 	extraParams := map[string]string{
 		"conf_name": cur_conf,
 		"user_name": user,
+		"pass": password,
 		"pretty_name": names[0],
 		"file_name": names[1],
 	}
@@ -190,58 +193,70 @@ func main() {
 
 	if len(os.Args) == 1 || os.Args[1] == "help" {
 		fmt.Println("help")
-		os.Exit(0) }
+		os.Exit(0) 
+	}
 
-		if len(os.Args) > 1{
-			read_config()
-			if os.Args[1] == "add"{
-				assert(len(os.Args) == 5, "wrong number of arguments \n maybe call syncfg help")
-				insert_into_config(os.Args[2], os.Args[3], os.Args[4])
-				write_config()
-			}
+	if len(os.Args) > 1{
+		read_config()
+		if os.Args[1] == "add"{
+			assert(len(os.Args) == 5, "wrong number of arguments \n maybe call syncfg help")
+			insert_into_config(os.Args[2], os.Args[3], os.Args[4])
+			write_config()
+		}
 
-			if os.Args[1] == "commit" {
-				cur_conf := ""
-				for i := 0; i < len(config); i++ {
-					if config[i][:1] == "#"{
-						cur_conf = config[i][1:]
-					} else if cur_conf != "" && config[i] != ""{
-						send_file(cur_conf, config[i])
-					}
+		if os.Args[1] == "commit" {
+			cur_conf := ""
+			for i := 0; i < len(config); i++ {
+				if config[i][:1] == "#"{
+					cur_conf = config[i][1:]
+				} else if cur_conf != "" && config[i] != ""{
+					send_file(cur_conf, config[i])
 				}
 			}
+		}
 
-			if os.Args[1] == "get" {
-				assert(len(os.Args) == 3, "wrong number of arguments \n maybe call syncfg help")
+		if os.Args[1] == "get" {
+			assert(len(os.Args) == 3, "wrong number of arguments \n maybe call syncfg help")
 
-				ur := "http://localhost:5000/getfiles?user_name="+user+"&conf_name="+os.Args[2]
-				files_str := get_request(ur)
-				files := strings.Split(files_str, " ")
-				all_except []int;
-				x = 1;
-				for i := 0; i < len(files); i++{
-					if files[i] != ""{
-						fmt.Println("["+x+"] "+string.Split(files[i], "/")[2] + " ")
-						x += 1
-					}
+			ur := "http://localhost:5000/getfiles?user_name="+user+"&conf_name="+os.Args[2]+"&pass="+password
+			files_str := get_request(ur)
+			files := strings.Split(files_str, " ")
+			//all_except := []int{};
+			x := 1;
+			for i := 0; i < len(files); i++{
+				if files[i] != ""{
+					fmt.Println("["+strconv.Itoa(x)+"] "+strings.Split(files[i], "/")[2] + " ")
+					x += 1
 				}
-				for i := 0; i < len(files); i++{
-					if files[i] != ""{
-						path := get_request("http://localhost:5000/file/"+files[i]+"/config")
-						file_str := get_request("http://localhost:5000/file/"+files[i]+"/file")
+			}
+			for i := 0; i < len(files); i++{
+				if files[i] != ""{
+					path := get_request("http://localhost:5000/file/"+files[i]+"/config")
+					file_str := get_request("http://localhost:5000/file/"+files[i]+"/file")
 
-						file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
-						if err != nil {
-							log.Fatal(err)
-						}
-						defer file.Close()
-
-						fmt.Fprintf(file, file_str)
-						path_details := strings.Split(files[i], "/")
-						insert_into_config(os.Args[2], path_details[2], path)
+					file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+					if err != nil {
+						log.Fatal(err)
 					}
+					defer file.Close()
+
+					fmt.Fprintf(file, file_str)
+					path_details := strings.Split(files[i], "/")
+					insert_into_config(os.Args[2], path_details[2], path)
 				}
+			}
+			write_config()
+		}
+
+		if os.Args[1] == "register"{
+			ur := "http://localhost:5000/register?user_name="+os.Args[2]+"&pass="+os.Args[3]
+			pass := get_request(ur)
+			fmt.Println(pass);
+			if pass == "done" {
+				user = os.Args[2]
+				password = os.Args[3]
 				write_config()
 			}
 		}
 	}
+}
