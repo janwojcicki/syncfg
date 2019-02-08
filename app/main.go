@@ -217,6 +217,14 @@ func main() {
 				ur := "http://localhost:5000/getfiles?user_name="+user+"&conf_name="+os.Args[2]
 				files_str := get_request(ur)
 				files := strings.Split(files_str, " ")
+				all_except []int;
+				x = 1;
+				for i := 0; i < len(files); i++{
+					if files[i] != ""{
+						fmt.Println("["+x+"] "+string.Split(files[i], "/")[2] + " ")
+						x += 1
+					}
+				}
 				for i := 0; i < len(files); i++{
 					if files[i] != ""{
 						path := get_request("http://localhost:5000/file/"+files[i]+"/config")
