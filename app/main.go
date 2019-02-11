@@ -18,6 +18,7 @@ var cwd, _ =  os.Getwd();
 var config []string
 var user string = ""
 var password string = ""
+var host string = ""
 
 func assert(condition bool, msg string){
 	if !condition{
@@ -94,7 +95,9 @@ func read_config(){
 		s := scanner.Text()
 		if len(s) > 1{
 			if s[:1] == "$" {
-				if user == "" {
+				if host == ""{
+					host = s[1:]
+				}else if user == "" {
 					user = s[1:]
 				} else {
 					password = s[1:]
@@ -115,6 +118,7 @@ func write_config(){
 	}
 	defer file.Close()
 
+	fmt.Fprintf(file, "$"+host+"\n")
 	fmt.Fprintf(file, "$"+user+"\n")
 	fmt.Fprintf(file, "$"+password+"\n")
 	for i := 0; i < len(config); i++{
@@ -133,7 +137,7 @@ func send_file(cur_conf string, cc string) {
 		"pretty_name": names[0],
 		"file_name": names[1],
 	}
-	request, err := newfileUploadRequest("http://127.0.0.1:5000/uploader", extraParams, "file", names[1])
+	request, err := newfileUploadRequest(host+"/uploader", extraParams, "file", names[1])
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -193,11 +197,14 @@ func main() {
 
 	if len(os.Args) == 1 || os.Args[1] == "help" {
 		fmt.Println("help")
-		os.Exit(0) 
+		os.Exit(0)
 	}
 
 	if len(os.Args) > 1{
 		read_config()
+
+		assert(host != "" || (len(os.Args) > 2 && os.Args[1]=="register") , "not registered to a service? \n maybe call syncfg register or syncfg login?")
+
 		if os.Args[1] == "add"{
 			assert(len(os.Args) == 5, "wrong number of arguments \n maybe call syncfg help")
 			insert_into_config(os.Args[2], os.Args[3], os.Args[4])
@@ -218,21 +225,35 @@ func main() {
 		if os.Args[1] == "get" {
 			assert(len(os.Args) == 3, "wrong number of arguments \n maybe call syncfg help")
 
-			ur := "http://localhost:5000/getfiles?user_name="+user+"&conf_name="+os.Args[2]+"&pass="+password
+			ur := host+"/getfiles?user_name="+user+"&conf_name="+os.Args[2]+"&pass="+password
 			files_str := get_request(ur)
 			files := strings.Split(files_str, " ")
-			//all_except := []int{};
 			x := 1;
+			fmt.Println("all except: ")
 			for i := 0; i < len(files); i++{
 				if files[i] != ""{
 					fmt.Println("["+strconv.Itoa(x)+"] "+strings.Split(files[i], "/")[2] + " ")
 					x += 1
 				}
 			}
+			reader := bufio.NewReader(os.Stdin)
+			text, _ := reader.ReadString('\n')
+			text = strings.Replace(text, "\n", "", -1)
+			excepts := strings.Split(text, " ")
+
 			for i := 0; i < len(files); i++{
+				not_this_one := false;
+				for j := 0; j < len(excepts); j++{
+					if strconv.Itoa(i) == excepts[j]{
+						not_this_one = true
+					}
+				}
+				if not_this_one{
+					continue
+				}
 				if files[i] != ""{
-					path := get_request("http://localhost:5000/file/"+files[i]+"/config")
-					file_str := get_request("http://localhost:5000/file/"+files[i]+"/file")
+					path := get_request(host+"/file/"+files[i]+"/config")
+					file_str := get_request(host+"/file/"+files[i]+"/file")
 
 					file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
 					if err != nil {
@@ -249,12 +270,15 @@ func main() {
 		}
 
 		if os.Args[1] == "register"{
-			ur := "http://localhost:5000/register?user_name="+os.Args[2]+"&pass="+os.Args[3]
+			assert(len(os.Args) == 5, "wrong number of arguments \n maybe call syncfg help")
+
+			ur := os.Args[2]+"/register?user_name="+os.Args[3]+"&pass="+os.Args[4]
 			pass := get_request(ur)
 			fmt.Println(pass);
 			if pass == "done" {
-				user = os.Args[2]
-				password = os.Args[3]
+				host = os.Args[2]
+				user = os.Args[3]
+				password = os.Args[4]
 				write_config()
 			}
 		}
